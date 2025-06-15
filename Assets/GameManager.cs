@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using UnityEngine.SceneManagement;
+using UnityEngine.EventSystems;
 
 public class GameManager : MonoBehaviour
 {
@@ -11,6 +12,7 @@ public class GameManager : MonoBehaviour
 
     private int score = 0;         // 전체 점수
     private int tmpScore = 0;      // KillAll 버튼용 점수
+    private float killMaxScore = 2f; // KillAll 활성화 점수
     
     public Button killAllButton;
     public GameObject gameOverPanel; // UI에 패널 연결
@@ -40,11 +42,14 @@ public class GameManager : MonoBehaviour
     {
         score += amount;
         tmpScore += amount; 
-        tmpScoreGaugeImage.fillAmount = tmpScore / 10f;
+        tmpScoreGaugeImage.fillAmount = tmpScore / killMaxScore;
         
         UpdateScoreUI();
-        if (tmpScore >= 10 && !killAllButton.gameObject.activeSelf)
+        if (tmpScore >= killMaxScore && !killAllButton.gameObject.activeSelf)
             killAllButton.gameObject.SetActive(true);
+            killAllButton.interactable = true; // ★ 버튼 색 회복 보장
+            // ✅ 버튼 색상 갱신 유도
+            EventSystem.current.SetSelectedGameObject(null);
     }
     
     public void RegisterEnemy(Enemy enemy)
@@ -61,7 +66,7 @@ public class GameManager : MonoBehaviour
         enemies.Clear();
         
         tmpScore = 0; // 버튼 클릭 시 tmpScore 초기화
-        tmpScoreGaugeImage.fillAmount = tmpScore; // KillAllEnemies()에서
+        tmpScoreGaugeImage.fillAmount = tmpScore; 
         killAllButton.gameObject.SetActive(false);
     }
 
