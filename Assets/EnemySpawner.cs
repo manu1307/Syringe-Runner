@@ -5,13 +5,13 @@ using UnityEngine;
 public class EnemySpawner : MonoBehaviour
 {
     public GameObject enemyPrefab;
-    public float spawnInterval = 5f;
     private float timer;
 
     void Update()
     {
         timer += Time.deltaTime;
-        if (timer >= spawnInterval)
+        float interval = GameDifficultyController.Instance.zombieSpawnInterval;
+        if (timer >= interval)
         {
             SpawnEnemy();
             timer = 0f;
@@ -26,11 +26,11 @@ public class EnemySpawner : MonoBehaviour
         Vector2 playerPos = player.transform.position;
 
         // 플레이어 기준에서 일정 거리 떨어진 랜덤 방향
-        float distance = Random.Range(2f, 8f); // 최소 2~최대 8유닛 떨어진 곳
+        float distance = Random.Range(3f, 8f); // 최소 2~최대 8유닛 떨어진 곳
         float angle = Random.Range(0f, 360f);
         Vector2 offset = new Vector2(Mathf.Cos(angle * Mathf.Deg2Rad), Mathf.Sin(angle * Mathf.Deg2Rad)) * distance;
 
-        Vector2 spawnPos = Random.insideUnitCircle * 5f;
+        Vector2 spawnPos = playerPos + offset;
         GameObject newEnemy = Instantiate(enemyPrefab, new Vector3(spawnPos.x, spawnPos.y, 0f), Quaternion.identity);
 
         // ✅ 여기에서 GameManager에 적 등록

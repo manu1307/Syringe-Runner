@@ -10,16 +10,23 @@ public class GameManager : MonoBehaviour
 {
     public static GameManager Instance;
 
-    private int score = 0;         // 전체 점수
+    private int score = 0;         // 총 점수 (시민+적)
+    private int curedCount = 0;    // 시민 치료 수
     private int tmpScore = 0;      // KillAll 버튼용 점수
     private float killMaxScore = 5f; // KillAll 활성화 점수
     private Coroutine pulseRoutine;
+    private bool hasContinued = false;  // 1회만 이어하기 허용
+    private Vector3 safeRespawnPoint;
     
     public Button killAllButton;
     public GameObject gameOverPanel; // UI에 패널 연결
     public Image tmpScoreGaugeImage;
     public Transform gaugeWrapperTransform; 
+    
+    public TMP_Text currentScoreText;
+    public TMP_Text bestScoreText;
 
+    private int bestScore = 0;
     private List<Enemy> enemies = new List<Enemy>();
 
     [Header("UI")]
@@ -34,6 +41,7 @@ public class GameManager : MonoBehaviour
 
     void Start()
     {
+        bestScore = PlayerPrefs.GetInt("BestScore", 0);
         tmpScoreGaugeImage.fillAmount = 0f; // ✅ 게이지 초기화
         UpdateGaugeColor(0f);
         killAllButton.gameObject.SetActive(false); // ← 버튼을 아예 숨김 상태로 시작
@@ -46,9 +54,17 @@ public class GameManager : MonoBehaviour
         score += amount;
         tmpScore += amount; 
         
+        if (score > bestScore)
+        {
+            bestScore = score;
+            PlayerPrefs.SetInt("BestScore", bestScore);
+            PlayerPrefs.Save();
+        }
+        
         float fill = Mathf.Clamp01(tmpScore / killMaxScore);
         tmpScoreGaugeImage.fillAmount = fill;
         UpdateGaugeColor(fill);
+        
         
         UpdateScoreUI();
         if (tmpScore >= killMaxScore)
@@ -106,17 +122,44 @@ public class GameManager : MonoBehaviour
     private void UpdateScoreUI()
     {
         if (scoreText != null)
-        {
-            scoreText.text = $" {score}명";
-        }
+            scoreText.text = $"치료: {curedCount}명"; // ✅ 시민 수 따로 표시
+
+        if (currentScoreText != null)
+            currentScoreText.text = $"점수: {score}";
+
+        if (bestScoreText != null)
+            bestScoreText.text = $"최고: {bestScore}";
     }
+
     public void GameOver()
     {
         Debug.Log("게임 종료");
-        Time.timeScale = 0f; // 게임 일시 정지
+
+        ShowGameOverPanel();
+    }
+    
+    public void ShowGameOverPanel()
+    {
+        Time.timeScale = 0f;
 
         if (gameOverPanel != null)
             gameOverPanel.SetActive(true);
+
+        // 이어하기 버튼 활성화 여부 설정
+        if (hasContinued)
+        {
+            // 이미 이어하기 한 적 있으면 버튼 숨기기
+            Transform continueBtn = gameOverPanel.transform.Find("ContinueButton");
+            if (continueBtn != null)
+                continueBtn.gameObject.SetActive(false);
+        }
+        else
+        {
+            // 이어하기 버튼 보여주기
+            Transform continueBtn = gameOverPanel.transform.Find("ContinueButton");
+            if (continueBtn != null)
+                continueBtn.gameObject.SetActive(true);
+        }
     }
     public void RestartGame()
     {
@@ -165,5 +208,103 @@ public class GameManager : MonoBehaviour
 
         tmpScoreGaugeImage.color = gaugeColor;
     }
+    
+    public void ReturnToHome()
+    {
+        Time.timeScale = 1f; // 혹시 멈춰있다면 다시 재개
+        SceneManager.LoadScene("MainMenuScene"); // ← 시작 씬 이름으로 바꿔주세요
+    }
+    
+    public void AddCuredCitizen()
+    {
+        curedCount++;
+        AddScore(1);  // 점수도 1점 추가
+        UpdateScoreUI();
+    }
+    // 테스트용
+    public void OnClickContinueButton()
+    {
+        if (hasContinued) return;
+
+        hasContinued = true;
+
+        // 패널 닫고 시간 재개
+        gameOverPanel.SetActive(false);
+        Time.timeScale = 1f;
+
+        // 플레이어 위치 복귀
+        PlayerController.Instance.transform.position = safeRespawnPoint;
+
+        // 잠시 무적 처리
+        StartCoroutine(TemporaryInvincibility());
+
+        // 이어하기 버튼 숨기기
+        Transform continueBtn = gameOverPanel.transform.Find("ContinueButton");
+        if (continueBtn != null)
+            continueBtn.gameObject.SetActive(false);
+    }
+    public void TryContinue()
+    {
+        if (hasContinued) return;
+        ContinueGameAfterAd();
+        // 광고 플랫폼에 따라 달라짐. 예시는 Unity Ads
+        // if (Advertisement.IsReady("rewardedVideo"))
+        // {
+        //     Advertisement.Show("rewardedVideo", new ShowOptions
+        //     {
+        //         resultCallback = result =>
+        //         {
+        //             if (result == ShowResult.Finished)
+        //             {
+        //                 ContinueGameAfterAd();
+        //             }
+        //             else
+        //             {
+        //                 Debug.Log("광고 실패 또는 스킵됨");
+        //             }
+        //         }
+        //     });
+        // }
+    }
+    
+    void ContinueGameAfterAd()
+    {
+        hasContinued = true;
+
+        // 게임 재개
+        Time.timeScale = 1f;
+        gameOverPanel.SetActive(false);
+
+        // 이어할 위치로 되돌리기 (예: Player 원래 위치 or 안전한 위치)
+        PlayerController.Instance.transform.position = safeRespawnPoint;
+
+        // 주변 좀비 제거 또는 잠시 무적
+        StartCoroutine(TemporaryInvincibility());
+    }
+    
+    IEnumerator TemporaryInvincibility()
+    {
+        SpriteRenderer sr = PlayerController.Instance.GetComponent<SpriteRenderer>();
+        Collider2D col = PlayerController.Instance.GetComponent<Collider2D>();
+
+        col.enabled = false;
+
+        float t = 0f;
+        while (t < 2f)
+        {
+            t += 0.2f;
+            sr.enabled = !sr.enabled; // 깜빡임
+            yield return new WaitForSeconds(0.2f);
+        }
+
+        sr.enabled = true;
+        col.enabled = true;
+    }
+    public void SetSafeRespawnPoint(Vector3 position)
+    {
+        safeRespawnPoint = position;
+    }
+
+    
 }
 

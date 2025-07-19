@@ -9,8 +9,10 @@ public class PlayerController : MonoBehaviour
     public float penaltyDuration = 2f;
     // private bool isSlowed = false;
     private SpriteRenderer spriteRenderer;
+    private Rigidbody2D rb;
     void Start()
     {
+        rb = GetComponent<Rigidbody2D>();
         spriteRenderer = GetComponent<SpriteRenderer>();
     }
     private void Awake()
@@ -18,16 +20,15 @@ public class PlayerController : MonoBehaviour
         Instance = this;
     }
 
-    void Update()
+    void FixedUpdate()  // ← Update 대신 FixedUpdate 사용
     {
         float moveX = Input.GetAxisRaw("Horizontal");
         float moveY = Input.GetAxisRaw("Vertical");
-        // float currentSpeed = isSlowed ? moveSpeed * 0.5f : moveSpeed;
 
-        Vector3 moveDir = new Vector3(moveX, moveY, 0).normalized;
-        transform.Translate(moveDir * moveSpeed * Time.deltaTime);
+        Vector2 moveDir = new Vector2(moveX, moveY).normalized;
+        rb.MovePosition(rb.position + moveDir * moveSpeed * Time.fixedDeltaTime);
 
-        // 좌우 이동 시 flipX 처리
+        // Sprite 반전
         if (moveX > 0.1f)
             spriteRenderer.flipX = false;
         else if (moveX < -0.1f)
@@ -44,7 +45,7 @@ public class PlayerController : MonoBehaviour
                 VaccineManager.Instance.UseVaccine(1);
 
                 Destroy(other.gameObject);
-                GameManager.Instance.AddScore(1);
+                GameManager.Instance.AddCuredCitizen();
             }
             else
             {
@@ -59,18 +60,5 @@ public class PlayerController : MonoBehaviour
             // 백신 상자는 VaccineBox.cs에서 처리
         }
     }
-
-    // public void TriggerPenalty()
-    // {
-    //     if (!isSlowed)
-    //         StartCoroutine(SlowDownTemporarily());
-    // }
-    //
-    // private IEnumerator SlowDownTemporarily()
-    // {
-    //     isSlowed = true;
-    //     yield return new WaitForSeconds(penaltyDuration);
-    //     isSlowed = false;
-    // }
 }
 

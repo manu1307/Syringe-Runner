@@ -19,7 +19,8 @@ public class CitizenSpawner : MonoBehaviour
     void Update()
     {
         timer += Time.deltaTime;
-        if (timer >= spawnInterval)
+        float interval = GameDifficultyController.Instance.citizenSpawnInterval;
+        if (timer >= interval)
         {
             SpawnCitizen();
             timer = 0f;

@@ -3,7 +3,6 @@ using UnityEngine;
 public class VaccineSpawner : MonoBehaviour
 {
     public GameObject vaccinePrefab;
-    public float spawnInterval = 3f;
     public float spawnXRange = 3f;
     
     // 유니티 에디터에서 세팅
@@ -15,7 +14,9 @@ public class VaccineSpawner : MonoBehaviour
     void Update()
     {
         timer += Time.deltaTime;
-        if (timer >= spawnInterval)
+        float interval = GameDifficultyController.Instance.vaccineSpawnInterval;
+
+        if (timer >= interval)
         {
             SpawnVaccine();
             timer = 0f;
